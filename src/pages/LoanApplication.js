@@ -169,8 +169,8 @@ const LoanApplication = () => {
 
         <h4 className="mt-4">Loan Breakdown</h4>
         <p><strong>Total Interest:</strong> KES {loanBreakdown.totalInterest.toFixed(2)}</p>
-        <p><strong>Total Payable:</strong> KES {loanBreakdown.totalPayable.toFixed(2)}</p>
         <p><strong>Weekly Installment:</strong> KES {loanBreakdown.weeklyInstallment.toFixed(2)}</p>
+        <p><strong>Total Payable:</strong> KES {loanBreakdown.totalPayable.toFixed(2)}</p>
 
         <button type="submit" className="btn btn-primary mt-3">Submit Application</button>
       </form>
