@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { Tooltip, Button, Modal } from 'react-bootstrap';
+import { AiOutlineInfoCircle } from 'react-icons/ai'; // Add icon for loan type
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const LoanApplication = () => {
   const [searchParams] = useSearchParams();
-  const loanType = searchParams.get('type') || 'salary'; // Default to 'salary' if not specified.
+  const loanType = searchParams.get('type') || 'salary'; // Default to 'salary' if not specified
 
   const [loanBreakdown, setLoanBreakdown] = useState({
     totalInterest: 0,
@@ -13,8 +16,44 @@ const LoanApplication = () => {
     weeklyInstallment: 0,
   });
 
-  const calculateLoanBreakdown = (amount, duration) => {
+  const [showModal, setShowModal] = useState(false);
+
+  // Formik setup for form validation
+  const formik = useFormik({
+    initialValues: {
+      fullName: '',
+      phoneNumber: '',
+      idNumber: '',
+      loanAmount: '',
+      loanDuration: 5, // Default duration in weeks
+      payslips: null,
+      bankStatement: null,
+      businessCertificate: null,
+    },
+    validationSchema: Yup.object({
+      fullName: Yup.string().required('Full name is required'),
+      phoneNumber: Yup.string().required('Phone number is required'),
+      idNumber: Yup.string().required('ID number is required'),
+      loanAmount: Yup.number()
+        .min(500, 'Minimum loan amount is 500 KES')
+        .required('Loan amount is required'),
+      loanDuration: Yup.number()
+        .min(1, 'Minimum duration is 1 week')
+        .max(5, 'Maximum duration is 5 weeks')
+        .required('Loan duration is required'),
+    }),
+    onSubmit: (values) => {
+      console.log('Form Submitted:', values);
+      alert('Your application has been successfully submitted!');
+    },
+  });
+
+  // Calculate loan breakdown (interest, total repayable, weekly installment)
+  const calculateLoanBreakdown = () => {
+    const amount = parseFloat(formik.values.loanAmount || 0);
+    const duration = parseInt(formik.values.loanDuration || 1, 10);
     const weeklyInterestRate = 0.05; // 5% weekly interest rate
+
     const totalInterest = amount * weeklyInterestRate * duration;
     const totalPayable = amount + totalInterest;
     const weeklyInstallment = totalPayable / duration;
@@ -22,63 +61,14 @@ const LoanApplication = () => {
     setLoanBreakdown({ totalInterest, totalPayable, weeklyInstallment });
   };
 
-  const formik = useFormik({
-    initialValues: {
-      loanType, // Automatically set based on URL parameter
-      fullName: '',
-      phoneNumber: '',
-      idNumber: '',
-      address: '',
-      loanAmount: '',
-      loanDuration: 5, // Default to 5 weeks
-      employerName: '',
-      businessName: '',
-      payslips: null,
-      bankStatement: null,
-      businessCertificate: null,
-    },
-    validationSchema: Yup.object({
-      fullName: Yup.string().required('Full name is required.'),
-      phoneNumber: Yup.string()
-        .matches(/^[0-9]+$/, 'Phone number must contain only digits.')
-        .required('Phone number is required.'),
-      idNumber: Yup.string().required('ID/Passport number is required.'),
-      address: Yup.string().required('Address is required.'),
-      loanAmount: Yup.number()
-        .min(500, 'Minimum loan amount is 500 KES.')
-        .required('Loan amount is required.'),
-      loanDuration: Yup.number()
-        .min(1, 'Minimum duration is 1 week.')
-        .max(5, 'Maximum duration is 5 weeks.')
-        .required('Loan duration is required.'),
-      employerName: Yup.string().when('loanType', (loanType, schema) =>
-        loanType === 'salary'
-          ? schema.required('Employer name is required for salary loans.')
-          : schema
-      ),
-      businessName: Yup.string().when('loanType', (loanType, schema) =>
-        loanType === 'business'
-          ? schema.required('Business name is required for business loans.')
-          : schema
-      ),
-    }),
-    onSubmit: (values) => {
-      console.log('Form Submitted:', values);
+  useEffect(() => {
+    calculateLoanBreakdown(); // Recalculate breakdown when form values change
+  }, [formik.values.loanAmount, formik.values.loanDuration]);
 
-      // Show alert upon successful submission
-      alert(`Application for ${values.loanType} loan submitted successfully!`);
-      
-      // Optionally, you can clear the form values if needed
-      // formik.resetForm();
-    },
-  });
-
-  const handleInputChange = (e) => {
-    formik.handleChange(e);
-    const { loanAmount, loanDuration } = formik.values;
-    if (loanAmount && loanDuration) {
-      calculateLoanBreakdown(parseFloat(loanAmount), parseInt(loanDuration, 10));
-    }
+  // Function to handle document preview
+  const handleFileUpload = (e, fieldName) => {
+    const file = e.target.files[0];
+    formik.setFieldValue(fieldName, file);
   };
 
   return (
@@ -87,26 +77,7 @@ const LoanApplication = () => {
       <p>Apply for a {loanType === 'salary' ? 'Salary Loan' : 'Business Loan'}.</p>
 
       <form onSubmit={formik.handleSubmit} className="mt-4">
-        {/* Loan Type Selector */}
-        <div className="mb-3">
-          <label htmlFor="loanType" className="form-label">Loan Type</label>
-          <select
-            id="loanType"
-            name="loanType"
-            className="form-control"
-            onChange={(e) => {
-              formik.setFieldValue('loanType', e.target.value);
-              formik.setFieldValue('employerName', '');
-              formik.setFieldValue('businessName', '');
-            }}
-            value={formik.values.loanType}
-          >
-            <option value="salary">Salary Loan</option>
-            <option value="business">Business Loan</option>
-          </select>
-        </div>
-
-        {/* Personal Information */}
+        {/* Full Name */}
         <div className="mb-3">
           <label htmlFor="fullName" className="form-label">Full Name</label>
           <input
@@ -114,12 +85,13 @@ const LoanApplication = () => {
             name="fullName"
             type="text"
             className="form-control"
-            onChange={handleInputChange}
+            onChange={formik.handleChange}
             value={formik.values.fullName}
           />
           {formik.errors.fullName && <div className="text-danger">{formik.errors.fullName}</div>}
         </div>
 
+        {/* Phone Number */}
         <div className="mb-3">
           <label htmlFor="phoneNumber" className="form-label">Phone Number</label>
           <input
@@ -127,39 +99,27 @@ const LoanApplication = () => {
             name="phoneNumber"
             type="text"
             className="form-control"
-            onChange={handleInputChange}
+            onChange={formik.handleChange}
             value={formik.values.phoneNumber}
           />
           {formik.errors.phoneNumber && <div className="text-danger">{formik.errors.phoneNumber}</div>}
         </div>
 
+        {/* National ID / Passport */}
         <div className="mb-3">
-          <label htmlFor="idNumber" className="form-label">ID/Passport Number</label>
+          <label htmlFor="idNumber" className="form-label">National ID/Passport</label>
           <input
             id="idNumber"
             name="idNumber"
             type="text"
             className="form-control"
-            onChange={handleInputChange}
+            onChange={formik.handleChange}
             value={formik.values.idNumber}
           />
           {formik.errors.idNumber && <div className="text-danger">{formik.errors.idNumber}</div>}
         </div>
 
-        <div className="mb-3">
-          <label htmlFor="address" className="form-label">Address</label>
-          <input
-            id="address"
-            name="address"
-            type="text"
-            className="form-control"
-            onChange={handleInputChange}
-            value={formik.values.address}
-          />
-          {formik.errors.address && <div className="text-danger">{formik.errors.address}</div>}
-        </div>
-
-        {/* Loan Details */}
+        {/* Loan Amount */}
         <div className="mb-3">
           <label htmlFor="loanAmount" className="form-label">Loan Amount</label>
           <input
@@ -167,57 +127,62 @@ const LoanApplication = () => {
             name="loanAmount"
             type="number"
             className="form-control"
-            onChange={handleInputChange}
+            onChange={formik.handleChange}
             value={formik.values.loanAmount}
           />
           {formik.errors.loanAmount && <div className="text-danger">{formik.errors.loanAmount}</div>}
         </div>
 
+        {/* Loan Duration */}
         <div className="mb-3">
-          <label htmlFor="loanDuration" className="form-label">Loan Duration (weeks)</label>
+          <label htmlFor="loanDuration" className="form-label">Loan Duration (in weeks)</label>
           <input
             id="loanDuration"
             name="loanDuration"
             type="number"
             className="form-control"
-            onChange={handleInputChange}
+            onChange={formik.handleChange}
             value={formik.values.loanDuration}
           />
           {formik.errors.loanDuration && <div className="text-danger">{formik.errors.loanDuration}</div>}
         </div>
 
-        {/* Conditional Inputs */}
-        {formik.values.loanType === 'salary' && (
-          <div className="mb-3">
-            <label htmlFor="employerName" className="form-label">Employer Name</label>
-            <input
-              id="employerName"
-              name="employerName"
-              type="text"
-              className="form-control"
-              onChange={handleInputChange}
-              value={formik.values.employerName}
-            />
-            {formik.errors.employerName && (
-              <div className="text-danger">{formik.errors.employerName}</div>
-            )}
-          </div>
+        {/* Conditional File Uploads */}
+        {loanType === 'salary' && (
+          <>
+            <div className="mb-3">
+              <label htmlFor="payslips" className="form-label">Upload Payslips</label>
+              <input
+                id="payslips"
+                name="payslips"
+                type="file"
+                className="form-control"
+                onChange={(e) => handleFileUpload(e, 'payslips')}
+              />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="bankStatement" className="form-label">Upload Bank Statement</label>
+              <input
+                id="bankStatement"
+                name="bankStatement"
+                type="file"
+                className="form-control"
+                onChange={(e) => handleFileUpload(e, 'bankStatement')}
+              />
+            </div>
+          </>
         )}
 
-        {formik.values.loanType === 'business' && (
+        {loanType === 'business' && (
           <div className="mb-3">
-            <label htmlFor="businessName" className="form-label">Business Name</label>
+            <label htmlFor="businessCertificate" className="form-label">Business Registration Certificate</label>
             <input
-              id="businessName"
-              name="businessName"
-              type="text"
+              id="businessCertificate"
+              name="businessCertificate"
+              type="file"
               className="form-control"
-              onChange={handleInputChange}
-              value={formik.values.businessName}
+              onChange={(e) => handleFileUpload(e, 'businessCertificate')}
             />
-            {formik.errors.businessName && (
-              <div className="text-danger">{formik.errors.businessName}</div>
-            )}
           </div>
         )}
 
@@ -227,8 +192,32 @@ const LoanApplication = () => {
         <p><strong>Total Payable:</strong> KES {loanBreakdown.totalPayable.toFixed(2)}</p>
         <p><strong>Weekly Installment:</strong> KES {loanBreakdown.weeklyInstallment.toFixed(2)}</p>
 
+        {/* Submit Button */}
         <button type="submit" className="btn btn-primary mt-3">Submit Application</button>
+
+        {/* Tooltip Info for Loan Type */}
+        <div className="mt-3">
+          <Tooltip placement="top" title="Choose the loan type depending on your application">
+            <AiOutlineInfoCircle size={25} />
+          </Tooltip>
+        </div>
       </form>
+
+      {/* Modal for Terms & Conditions */}
+      <Modal show={showModal} onHide={() => setShowModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Loan Terms & Conditions</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>By applying for this loan, you agree to our terms and conditions...</p>
+          {/* Add your actual terms here */}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
