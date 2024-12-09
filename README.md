@@ -9,7 +9,7 @@ Lyms Microfinance is a web-based application designed to provide a seamless and 
 ---
 
 ## Table of Contents
-
+- [Author](#author)
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -17,7 +17,6 @@ Lyms Microfinance is a web-based application designed to provide a seamless and 
 - [Technologies Used](#technologies-used)
 - [Screenshots](#screenshots)
 - [Contributing](#contributing)
-- [Author](#author)
 - [License](#license)
 
 ---
